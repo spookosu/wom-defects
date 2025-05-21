@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Group 11796 Past Competitions</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f8;
+      padding: 20px;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    .competition {
+      background: #fff;
+      border-left: 4px solid #3498db;
+      padding: 16px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .competition h2 {
+      margin: 0 0 8px;
+      color: #2980b9;
+    }
+    .info {
+      font-size: 0.9em;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .players {
+      margin-left: 20px;
+    }
+    .player {
+      margin: 5px 0;
+    }
+    .rank {
+      font-weight: bold;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>Top 10 - Recent Past Competitions (Group #11796)</h1>
+  <div id="competition-list">Loading competitions...</div>
+
+  <script>
+    const groupId = 11796;
+    const competitionsUrl = `https://api.wiseoldman.net/v2/groups/${groupId}/competitions`;
+
+    const formatDate = (dateStr) => new Date(dateStr).toLocaleString();
+
+    async function fetchCompetitions() {
+      const res = await fetch(competitionsUrl);
+      if (!res.ok) throw new Error("Failed to fetch competitions");
+      return await res.json();
+    }
+
+    async function fetchCompetitionDetails(id) {
+      const res = await fetch(`https://api.wiseoldman.net/v2/competitions/${id}`);
+      if (!res.ok) throw new Error(`Failed to fetch competition ${id}`);
+      return await res.json();
+    }
+
+    async function loadCompetitions() {
+      const container = document.getElementById('competition-list');
+      try {
+        const allCompetitions = await fetchCompetitions();
+        const now = new Date();
+        const past = allCompetitions
+          .filter(c => new Date(c.endsAt) < now)
+          .sort((a, b) => new Date(b.endsAt) - new Date(a.endsAt))
+          .slice(0, 5); // Load only 5 to avoid overloading
+
+        if (past.length === 0) {
+          container.innerText = 'No past competitions found.';
+          return;
+        }
+
+        for (const comp of past) {
+          const details = await fetchCompetitionDetails(comp.id);
+          const participants = details.participants || [];
+
+          if (!Array.isArray(participants) || participants.length === 0) continue;
+
+          const top10 = participants
+            .sort((a, b) => b.progress.gained - a.progress.gained)
+            .slice(0, 10);
+
+          const compEl = document.createElement('div');
+          compEl.className = 'competition';
+
+          compEl.innerHTML = `
+            <h2>${comp.title}</h2>
+            <div class="info">
+              Metric: <strong>${comp.metric}</strong><br>
+              Start: ${formatDate(comp.startsAt)}<br>
+              End: ${formatDate(comp.endsAt)}<br>
+              Participants: ${participants.length}
+            </div>
+          `;
+
+          const playerList = document.createElement('div');
+          playerList.className = 'players';
+          top10.forEach((p, i) => {
+            const el = document.createElement('div');
+            el.className = 'player';
+            el.innerHTML = `<span class="rank">#${i + 1}</span> ${p.displayName} — ${p.progress.gained} ${comp.metric}`;
+            playerList.appendChild(el);
+          });
+
+          compEl.appendChild(playerList);
+          container.appendChild(compEl);
+        }
+
+        if (!container.hasChildNodes()) {
+          container.innerHTML = '<div class="error">No valid past competitions with participants found.</div>';
+        }
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = `
+          <div class="error">⚠️ Error: ${err.message}</div>
+        `;
+      }
+    }
+
+    loadCompetitions();
+  </script>
+</body>
+</html>
